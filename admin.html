@@ -1,0 +1,168 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spice Route - Admin Login</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f8eee1;
+            font-family: Arial, sans-serif;
+            color: #422719;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: #fffaf2;
+            width: 100%;
+            max-width: 400px;
+            padding: 35px;
+            border-radius: 18px;
+            box-shadow: 0 8px 30px rgba(66, 39, 25, 0.15);
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 45px;
+        }
+
+        h1 {
+            color: #713b20;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            color: #796c60;
+            margin-bottom: 25px;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            margin: 10px 0;
+            border: 1px solid #ddcbb8;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 15px;
+            background: #974b25;
+            color: white;
+            border: none;
+            border-radius: 9px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #713b20;
+        }
+
+        #login-error {
+            color: #b52e2e;
+            font-size: 14px;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            color: #974b25;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-box">
+        <div class="logo">🌶️</div>
+
+        <h1>Spice Route</h1>
+        <p class="subtitle">Administrator Login</p>
+
+        <form id="admin-login-form">
+
+            <input
+                type="email"
+                id="admin-email"
+                placeholder="Admin Email"
+                required
+            >
+
+            <input
+                type="password"
+                id="admin-password"
+                placeholder="Admin Password"
+                required
+            >
+
+            <p id="login-error"></p>
+
+            <button type="submit" id="login-button">
+                Login as Admin
+            </button>
+
+        </form>
+
+        <a href="index.html">← Back to Website</a>
+    </div>
+
+    <script>
+        document.getElementById("admin-login-form").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const button = document.getElementById("login-button");
+            const error = document.getElementById("login-error");
+
+            button.disabled = true;
+            button.textContent = "Logging in...";
+            error.textContent = "";
+
+            try {
+                const response = await fetch("/api/admin/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email: document.getElementById("admin-email").value.trim(),
+                        password: document.getElementById("admin-password").value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || "Invalid admin login.");
+                }
+
+                localStorage.setItem("spiceRouteAdminToken", data.token);
+
+                window.location.href = "admin-dashboard.html";
+
+            } catch (err) {
+                error.textContent = err.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = "Login as Admin";
+            }
+        });
+    </script>
+
+</body>
+</html>

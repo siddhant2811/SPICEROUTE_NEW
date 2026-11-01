@@ -1,0 +1,406 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spice Route - Admin Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f8eee1;
+            color: #422719;
+        }
+
+        header {
+            background: #713b20;
+            color: white;
+            padding: 20px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 23px;
+        }
+
+        header button {
+            background: #fffaf2;
+            color: #713b20;
+            border: 0;
+            padding: 10px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .heading h2 {
+            color: #713b20;
+            margin: 0;
+        }
+
+        .refresh-button {
+            background: #974b25;
+            color: white;
+            border: 0;
+            padding: 11px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #message {
+            margin: 15px 0;
+            color: #974b25;
+        }
+
+        .order-card {
+            background: #fffaf2;
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(66, 39, 25, 0.08);
+        }
+
+        .order-top {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+            border-bottom: 1px solid #ead8c5;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+
+        .order-top h3 {
+            margin: 0;
+            color: #713b20;
+        }
+
+        .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+        }
+
+        .detail-box {
+            background: #f7ecdf;
+            padding: 14px;
+            border-radius: 9px;
+            overflow-wrap: anywhere;
+        }
+
+        .detail-box p {
+            margin: 7px 0;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+            align-items: center;
+        }
+
+        select {
+            padding: 10px;
+            border: 1px solid #ddcbb8;
+            border-radius: 7px;
+            background: white;
+            color: #422719;
+        }
+
+        .action-button {
+            padding: 10px 15px;
+            border: 0;
+            border-radius: 7px;
+            background: #974b25;
+            color: white;
+            cursor: pointer;
+        }
+
+        .paid-button {
+            background: #287a45;
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .empty {
+            text-align: center;
+            background: #fffaf2;
+            padding: 35px;
+            border-radius: 12px;
+        }
+
+        @media(max-width: 600px) {
+            header {
+                padding: 18px;
+            }
+
+            .order-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>🌶️ Spice Route Admin</h1>
+    <button onclick="logoutAdmin()">Logout</button>
+</header>
+
+<main>
+
+    <div class="heading">
+        <h2>Order Management</h2>
+        <button class="refresh-button" onclick="loadOrders()">↻ Refresh Orders</button>
+    </div>
+
+    <p id="message">Loading orders...</p>
+
+    <div id="orders-container"></div>
+
+</main>
+
+<script>
+    const adminToken = localStorage.getItem("spiceRouteAdminToken");
+
+    if (!adminToken) {
+        window.location.href = "admin.html";
+    }
+
+    function logoutAdmin() {
+        localStorage.removeItem("spiceRouteAdminToken");
+        window.location.href = "admin.html";
+    }
+
+    async function loadOrders() {
+        const container = document.getElementById("orders-container");
+        const message = document.getElementById("message");
+
+        message.textContent = "Loading orders...";
+        container.innerHTML = "";
+
+        try {
+            const response = await fetch("/api/admin/orders", {
+                headers: {
+                    Authorization: `Bearer ${adminToken}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Could not load orders.");
+            }
+
+            const orders = data.orders || [];
+
+            message.textContent = `Total Orders: ${orders.length}`;
+
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty">
+                        <h3>No orders yet</h3>
+                        <p>Customer orders will appear here.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            orders.forEach(order => {
+                const address = order.shippingAddress || {};
+                const items = order.items || [];
+
+                const itemsHTML = items.map(item => `
+                    <p>
+                        ${escapeHTML(item.name || "Product")}
+                        (${escapeHTML(String(item.grams || ""))} g)
+                        × ${Number(item.quantity || 0)}
+                    </p>
+                `).join("");
+
+                const card = document.createElement("div");
+                card.className = "order-card";
+
+                card.innerHTML = `
+                    <div class="order-top">
+                        <h3>Order #${escapeHTML(order._id || "")}</h3>
+                        <span>${order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : ""}</span>
+                    </div>
+
+                    <div class="details">
+
+                        <div class="detail-box">
+                            <h4>Customer Details</h4>
+                            <p><strong>Name:</strong> ${escapeHTML(address.name || "Unavailable")}</p>
+                            <p><strong>Phone:</strong> ${escapeHTML(address.phone || "Unavailable")}</p>
+                            <p><strong>Address:</strong> ${escapeHTML(address.address || "Unavailable")}</p>
+                            <p><strong>PIN:</strong> ${escapeHTML(address.pincode || "Unavailable")}</p>
+                        </div>
+
+                        <div class="detail-box">
+                            <h4>Order Items</h4>
+                            ${itemsHTML || "<p>No items found</p>"}
+                        </div>
+
+                        <div class="detail-box">
+                            <h4>Payment Details</h4>
+                            <p><strong>Subtotal:</strong> ₹${Number(order.subtotal || 0).toFixed(2)}</p>
+                            <p><strong>GST:</strong> ₹${Number(order.gst || 0).toFixed(2)}</p>
+                            <p><strong>Delivery:</strong> ₹${Number(order.deliveryFee || 0).toFixed(2)}</p>
+                            <p><strong>Total:</strong> ₹${Number(order.totalAmount || 0).toFixed(2)}</p>
+                            <p><strong>Method:</strong> ${escapeHTML(order.paymentMethod || "")}</p>
+                            <p><strong>Payment Status:</strong>
+                                <span class="status">${escapeHTML(order.paymentStatus || "Pending")}</span>
+                            </p>
+                            <p><strong>Order Status:</strong>
+                                <span class="status">${escapeHTML(order.status || "Pending")}</span>
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <div class="actions">
+                        <button class="action-button paid-button"
+                            onclick="updatePayment('${order._id}', 'Paid')"
+                            ${order.paymentStatus === "Paid" ? "disabled" : ""}>
+                            Mark as Paid
+                        </button>
+
+                        <button class="action-button"
+                            onclick="updatePayment('${order._id}', 'Pending')">
+                            Mark as Pending
+                        </button>
+
+                        <select id="status-${order._id}">
+                            <option value="Pending" ${order.status === "Pending" ? "selected" : ""}>Pending</option>
+                            <option value="Accepted" ${order.status === "Accepted" ? "selected" : ""}>Accepted</option>
+                            <option value="Rejected" ${order.status === "Rejected" ? "selected" : ""}>Rejected</option>
+                            <option value="Shipped" ${order.status === "Shipped" ? "selected" : ""}>Shipped</option>
+                            <option value="Delivered" ${order.status === "Delivered" ? "selected" : ""}>Delivered</option>
+                        </select>
+
+                        <button class="action-button"
+                            onclick="updateOrderStatus('${order._id}')">
+                            Update Order Status
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+        } catch (error) {
+            message.textContent = error.message;
+
+            if (error.message.toLowerCase().includes("token") ||
+                error.message.toLowerCase().includes("unauthorized")) {
+                logoutAdmin();
+            }
+        }
+    }
+
+    async function updatePayment(orderId, paymentStatus) {
+        if (paymentStatus === "Paid") {
+            const confirmed = confirm(
+                "Have you checked your UPI app and confirmed that this payment was received?"
+            );
+
+            if (!confirmed) return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/orders/${orderId}/payment`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${adminToken}`
+                },
+                body: JSON.stringify({ paymentStatus })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Payment update failed.");
+            }
+
+            alert("Payment status updated successfully!");
+            loadOrders();
+
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    async function updateOrderStatus(orderId) {
+        const status = document.getElementById(`status-${orderId}`).value;
+
+        try {
+            const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${adminToken}`
+                },
+                body: JSON.stringify({ status })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Order status update failed.");
+            }
+
+            alert("Order status updated successfully!");
+            loadOrders();
+
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, character => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[character]);
+    }
+
+    loadOrders();
+</script>
+
+</body>
+</html>
